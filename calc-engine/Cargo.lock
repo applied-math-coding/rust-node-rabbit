@@ -134,6 +134,7 @@ name = "calc-engine"
 version = "0.1.0"
 dependencies = [
  "amiquip",
+ "serde_json",
 ]
 
 [[package]]
