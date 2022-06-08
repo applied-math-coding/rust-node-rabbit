@@ -8,6 +8,8 @@ export class MessageService {
     private channel: Channel;
     private responseQueue: string;
     private queueResponse = new BehaviorSubject<Message>(null);
+    private creatingChannel = new BehaviorSubject<boolean>(false);
+    private creatingResponseQueue = new BehaviorSubject<boolean>(false);
 
     async sendMessage(n: number): Promise<string> {
         const channel = await this.ensureChannel();
@@ -30,52 +32,58 @@ export class MessageService {
     }
 
     private async ensureResponseQueue(channel: Channel): Promise<string> {
-        return this.responseQueue ?? new Promise(
-            (res, rej) => channel.assertQueue('', {
-                exclusive: true
-            }, (e, q) => {
-                if (e) {
-                    rej(e);
-                } else {
-                    if (!this.responseQueue) { // another req. could have init. it in the meantime
-                        this.responseQueue = q.queue;
-                        channel.consume(
-                            this.responseQueue,
-                            msg => this.queueResponse.next(msg),
-                            { noAck: true }
-                        );
-                    }
-                    res(this.responseQueue);
+        return this.responseQueue ?? this.creatingResponseQueue.value ?
+            lastValueFrom(this.creatingResponseQueue.pipe(filter(v => !v), first(), map(() => this.responseQueue))) :
+            new Promise(
+                (res, rej) => {
+                    this.creatingResponseQueue.next(true);
+                    channel.assertQueue('', {
+                        exclusive: true
+                    }, (e, q) => {
+                        if (e) {
+                            rej(e);
+                        } else {
+                            this.responseQueue = q.queue;
+                            channel.consume(
+                                this.responseQueue,
+                                msg => this.queueResponse.next(msg),
+                                { noAck: true }
+                            );
+                            res(this.responseQueue);
+                        }
+                        this.creatingResponseQueue.next(false);
+                    });
                 }
-            })
-        );
+            );
     }
 
     private async ensureChannel(): Promise<Channel> {
-        return this.channel ?? new Promise((res, rej) => { //TODO take host from env
-            connect('amqp://localhost', (error0, connection) => {
-                if (error0) {
-                    rej(error0);
-                }
-                connection.on('close', () => {
-                    this.channel = null;
-                    this.responseQueue = null;
-                });
-                connection.createChannel((error1, channel) => {
-                    if (error1) {
-                        rej(error1);
-                    } else {
-                        if (!this.channel) { // another req. could have init. it in the meantime
+        return this.channel ?? this.creatingChannel.value ?
+            lastValueFrom(this.creatingChannel.pipe(filter(v => !v), first(), map(() => this.channel))) :
+            new Promise((res, rej) => { //TODO take host from env
+                this.creatingChannel.next(true);
+                connect('amqp://localhost', (error0, connection) => {
+                    if (error0) {
+                        rej(error0);
+                    }
+                    connection.on('close', () => {
+                        this.channel = null;
+                        this.responseQueue = null;
+                    });
+                    connection.createChannel((error1, channel) => {
+                        if (error1) {
+                            rej(error1);
+                        } else {
                             channel.assertQueue(this.HANOI_QUEUE, {
                                 durable: false
                             });
                             this.channel = channel;
+                            res(this.channel);
                         }
-                        res(this.channel);
-                    }
+                        this.creatingChannel.next(false);
+                    });
                 });
             });
-        });
     }
 
     private generateUuid(): string {

@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     let exchange = Exchange::direct(&channel);
     let queue = channel.queue_declare("hanoi", QueueDeclareOptions::default())?;
     let consumer = queue.consume(ConsumerOptions::default())?;
-    for (i, message) in consumer.receiver().iter().enumerate() {
+    for message in consumer.receiver().iter() {
         match message {
             ConsumerMessage::Delivery(delivery) => {
                 let body = String::from_utf8(delivery.body.clone()).unwrap();
