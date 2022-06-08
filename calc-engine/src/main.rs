@@ -1,24 +1,42 @@
 mod hanoi;
 use amiquip::{
     AmqpProperties, Connection, ConsumerMessage, ConsumerOptions, Exchange, Publish,
-    QueueDeclareOptions, Result,
+    QueueDeclareOptions,
 };
 use num_cpus;
+use rayon;
 use serde_json::json;
 
-fn main() -> Result<()> {
-    let pool = rayon::ThreadPoolBuilder::new()
+fn main() {
+    let pool = setup_pool();
+    setup_hanoi_queue(&pool);
+}
+
+fn setup_pool() -> rayon::ThreadPool {
+    rayon::ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
         .build()
-        .unwrap();
+        .unwrap()
+}
 
-    //TODO take url from env
-    //TODO handle the error, wait 2 secs and then try to reconnect
-    //TODO when connection is closed, do break from loop below and re-run this method
-    let mut connection = Connection::insecure_open("amqp://guest:guest@localhost:5672")?;
-    let channel = connection.open_channel(None)?;
-    let queue = channel.queue_declare("hanoi", QueueDeclareOptions::default())?;
-    let consumer = queue.consume(ConsumerOptions::default())?;
+fn setup_connection() -> Connection {
+    if let Ok(c) = Connection::insecure_open("amqp://guest:guest@localhost:5672") {
+        println!("Connected to rabbitmq!");
+        c
+    } else {
+        println!("Failed to connect to rabbitmq. Will retry in 2s.");
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        setup_connection()
+    }
+}
+
+fn setup_hanoi_queue(pool: &rayon::ThreadPool) {
+    let mut connection = setup_connection();
+    let channel = connection.open_channel(None).unwrap();
+    let queue = channel
+        .queue_declare("hanoi", QueueDeclareOptions::default())
+        .unwrap();
+    let consumer = queue.consume(ConsumerOptions::default()).unwrap();
     for message in consumer.receiver().iter() {
         match message {
             ConsumerMessage::Delivery(delivery) => {
@@ -33,7 +51,7 @@ fn main() -> Result<()> {
                         continue;
                     }
                 };
-                let channel_for_msg = connection.open_channel(None)?;
+                let channel_for_msg = connection.open_channel(None).unwrap();
                 pool.spawn(move || {
                     let exchange = Exchange::direct(&channel_for_msg);
                     exchange
@@ -46,13 +64,15 @@ fn main() -> Result<()> {
                         ))
                         .unwrap();
                 });
-                consumer.ack(delivery)?;
+                consumer.ack(delivery).unwrap();
             }
             other => {
                 println!("Consumer ended: {:?}", other);
+                println!("Will try to reset connection in 2s.");
+                std::thread::sleep(std::time::Duration::from_secs(2));
                 break;
             }
         }
     }
-    connection.close()
+    setup_hanoi_queue(pool);
 }
