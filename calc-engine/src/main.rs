@@ -1,13 +1,17 @@
+extern crate dotenv;
 mod hanoi;
 use amiquip::{
     AmqpProperties, Connection, ConsumerMessage, ConsumerOptions, Exchange, Publish,
     QueueDeclareOptions,
 };
+use dotenv::dotenv;
 use num_cpus;
 use rayon;
 use serde_json::json;
+use std::env;
 
 fn main() {
+    dotenv().ok();
     let pool = setup_pool();
     setup_hanoi_queue(&pool);
 }
@@ -20,7 +24,13 @@ fn setup_pool() -> rayon::ThreadPool {
 }
 
 fn setup_connection() -> Connection {
-    if let Ok(c) = Connection::insecure_open("amqp://guest:guest@localhost:5672") {
+    if let Ok(c) = Connection::insecure_open(&format!(
+        "amqp://{}:{}@{}:{}",
+        env::var("RABBITMQ_USER").unwrap(),
+        env::var("RABBITMQ_PWD").unwrap(),
+        env::var("RABBITMQ_HOST").unwrap(),
+        env::var("RABBITMQ_PORT").unwrap()
+    )) {
         println!("Connected to rabbitmq!");
         c
     } else {
