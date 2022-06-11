@@ -7,7 +7,8 @@ import { filter, first, map } from 'rxjs/operators';
 
 const props = defineProps<{
     towerId: number,
-    numberElements: number
+    numberElements: number,
+    height: string
 }>();
 
 const state = reactive({
@@ -19,34 +20,39 @@ const store = useStore();
 onMounted(() => {
     state.elements = [...Array(props.numberElements)]
         .map((_, idx) => new TowerElement(idx + 1));
+    //TODO compute the width inside the element (at init)
     store.$onAction(({ name, args }) => {
         switch (name) {
             case 'pushTo': {
                 const [towerId, element] = args;
                 if (towerId === props.towerId) {
                     element.isAdded = true;
-                    element.isRemoved = false;
-                    state.elements.unshift(element); //TODO observe is change detection works
+                    state.elements.unshift(element);
                     state.animationEvent.pipe(
                         filter(e => !!e),
                         map(e => e as TowerElement),
-                        first(e => e.value === element.value && e.isAdded)
+                        first(e => e.value === element.value)
                     ).subscribe(e => {
                         e.isAdded = false;
-                        //TODO trigger pushed action
+                        store.pushed();
                     });
                 }
-                //TODO add animation listener and invoke store.animationEnd ...
-                //TODO at hanoin-towers handle promise result of store action
-                // and trigger next action if any
-                //TODO state.elements[0].? added/removed = true/false                                        
-                //TODO compute the width inside the element (at init)
-                //TODO put the added elements to the add action as argument
                 break;
             }
             case 'removeFrom': {
                 const [towerId] = args;
-                if (towerId === props.towerId) {
+                if (towerId === props.towerId && state.elements[0]) {
+                    const element = state.elements[0];
+                    element.isRemoved = true;
+                    state.animationEvent.pipe(
+                        filter(e => !!e),
+                        map(e => e as TowerElement),
+                        first(e => e.value === element.value)
+                    ).subscribe(e => {
+                        e.isRemoved = false;
+                        state.elements.shift();
+                        store.removed(e);
+                    });
                 }
             }
             default:
@@ -57,7 +63,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="tower">
+    <div class="tower" :style="{ 'height': height }">
         <div class="tower-element-wrapper" v-for="e in state.elements" @animationend="state.animationEvent.next(e)">
             <div class="tower-element" :class="{ 'is-added': e.isAdded, 'is-removed': e.isRemoved }">{{ e.value }}</div>
         </div>
@@ -97,7 +103,7 @@ onMounted(() => {
 
         .tower-element {
             width: 100px; //TODO
-            height: 20px;
+            height: var(--tower-element-height);
             border: 1px solid black;
             border-radius: 5px;
             background-color: blue;

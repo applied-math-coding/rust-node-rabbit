@@ -16,6 +16,10 @@ import HanoiTowers from './components/hanoi-towers/HanoiTowers.vue';
 <style>
 @import './assets/base.scss';
 
+:root{
+  --tower-element-height: 20px;
+}
+
 #app {
   max-width: 1280px;
   margin: 0 auto;
