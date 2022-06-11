@@ -12,9 +12,9 @@ setTimeout(async () => {
     await store.pushTo(1, e);
     e = await store.removeFrom(0);
     await store.pushTo(1, e);
-}, 5000) //TODO list to start button
+}, 1000) //TODO list to start button
 // offer stop button
-// during play disable start and other number spinner
+// during play disable start
 // fetch solution from server
 
 </script>
@@ -22,7 +22,7 @@ setTimeout(async () => {
 <template>
     <div class="towers">
         <div class="tower-positioner" v-for="id in [0, 1, 2]">
-            <Tower :tower-id="id" :number-elements="id === 0 ? state.n : 0" :height="towerHeight"></Tower>
+            <Tower :tower-id="id" :height="towerHeight"></Tower>
         </div>
     </div>
 </template>
