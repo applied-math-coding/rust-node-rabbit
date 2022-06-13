@@ -43,7 +43,9 @@ export const useStore = defineStore('main', {
             });
         },
         animationEnd(e: TowerElement) { },
-        stop() { },
+        stop() {
+            this.towers = initTowers(this.elementCount);
+        },
         changeElementCount(n: number) {
             this.stop();
             this.elementCount = n;

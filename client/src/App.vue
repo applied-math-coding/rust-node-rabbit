@@ -16,8 +16,9 @@ import HanoiTowers from './components/hanoi-towers/HanoiTowers.vue';
 <style>
 @import './assets/base.scss';
 
-:root{
+:root {
   --tower-element-height: 20px;
+  --animation-speed: 0.5s;
 }
 
 #app {

@@ -20,7 +20,7 @@ function handleAnimationEnd(e: TowerElement) {
         <div class="tower-element-wrapper" v-for="e in store.towers[towerId]" @animationend="handleAnimationEnd(e)"
             :key="e.value">
             <div class="tower-element" :class="{ 'is-added': e.isAdded, 'is-removed': e.isRemoved }"
-                :style="{ 'width': e.width }">{{ e.value }}</div>
+                :style="{ 'width': e.width }"></div>
         </div>
     </div>
 
@@ -57,19 +57,18 @@ function handleAnimationEnd(e: TowerElement) {
         justify-content: center;
 
         .tower-element {
-            width: 100px; //TODO
             height: var(--tower-element-height);
             border: 1px solid black;
             border-radius: 5px;
-            background-color: blue;
+            background-color: var(--primary-color);
 
             &.is-added {
-                animation-duration: 1.5s;
+                animation-duration: var(--animation-speed);
                 animation-name: fadin;
             }
 
             &.is-removed {
-                animation-duration: 1.5s;
+                animation-duration: var(--animation-speed);
                 animation-name: fadout;
             }
         }
